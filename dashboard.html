@@ -61,7 +61,7 @@
           <button class="set-btn" disabled title="Belum dipakai di kode ESP32 saat ini">SET</button>
         </div>
         <div id="tempPreview" class="temp-preview" style="display: none;">
-          Kontrol suhu/kipas belum dipakai di kode ESP32 saat ini: <span id="tempValue">--</span>°C
+          Kontrol suhu belum dipakai di kode ESP32 saat ini: <span id="tempValue">--</span>°C
         </div>
       </div>
 
@@ -76,9 +76,9 @@
             </label>
           </div>
           <div class="switch-item inactive">
-            <span class="switch-label">Saklar 2 - Kipas Belum Aktif</span>
+            <span class="switch-label">Saklar 2 - Belum Aktif</span>
             <label class="switch">
-              <input type="checkbox" id="kipasSwitch" disabled>
+              <input type="checkbox" id="saklar2Switch" disabled>
               <span class="slider"></span>
             </label>
           </div>
@@ -100,16 +100,6 @@
       </div>
 
       <div class="controls-section">
-        <h3 class="controls-title">Setting Servo Pakan</h3>
-        <div class="slider-container">
-          <input type="number" min="0" max="180" id="servoHome" placeholder="Servo awal">
-          <input type="number" min="0" max="180" id="servoFeed" placeholder="Servo buka">
-          <input type="number" min="200" max="10000" id="feedDelay" placeholder="Delay ms">
-          <button class="set-btn" onclick="saveServoSetting()">SIMPAN</button>
-        </div>
-      </div>
-
-      <div class="controls-section">
         <h3 class="controls-title">Jadwal Otomatis</h3>
         <div class="slider-container">
           <input type="time" id="lampuOnTime" title="Lampu ON">
@@ -120,7 +110,7 @@
         <div class="switch-item" style="margin: 15px auto; max-width: 260px;">
           <span class="switch-label">Aktifkan Jadwal</span>
           <label class="switch">
-            <input type="checkbox" id="scheduleSwitch">
+            <input type="checkbox" id="scheduleSwitch" onchange="saveSchedule()">
             <span class="slider"></span>
           </label>
         </div>
@@ -166,7 +156,7 @@
   <script>
     const token = localStorage.getItem('aquarium_token');
     const nama = localStorage.getItem('aquarium_nama') || 'User';
-    const GAS_URL = localStorage.getItem('aquarium_gas_url') || 'https://script.google.com/macros/s/AKfycbwlcDdi9ayD8F97ppy0NkfB7ME57Il917TlCCIJXTuuLuMHYiKYf501a_QeiRin1Z6nvg/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwlcDdi9ayD8F97ppy0NkfB7ME57Il917TlCCIJXTuuLuMHYiKYf501a_QeiRin1Z6nvg/exec';
     let perangkatOnline = false;
     let pollTimer = null;
 
@@ -213,17 +203,19 @@
           document.getElementById('tempValue').innerText = res.setSuhu || '--';
 
           document.getElementById('lampuSwitch').checked = res.lampu === 'ON';
-          document.getElementById('kipasSwitch').checked = res.kipas === 'ON';
-
-          document.getElementById('servoHome').value = res.servoHome || 0;
-          document.getElementById('servoFeed').value = res.servoFeed || 90;
-          document.getElementById('feedDelay').value = res.feedDelay || 1500;
 
           document.getElementById('lampuOnTime').value = res.lampuOnTime || '07:00';
           document.getElementById('lampuOffTime').value = res.lampuOffTime || '21:00';
           document.getElementById('feedTime1').value = res.feedTime1 || '08:00';
           document.getElementById('feedTime2').value = res.feedTime2 || '17:00';
           document.getElementById('scheduleSwitch').checked = res.scheduleEnabled === 'ON';
+          lastScheduleData = {
+            lampuOnTime: res.lampuOnTime || '07:00',
+            lampuOffTime: res.lampuOffTime || '21:00',
+            feedTime1: res.feedTime1 || '08:00',
+            feedTime2: res.feedTime2 || '17:00',
+            scheduleEnabled: res.scheduleEnabled || 'OFF'
+          };
         })
         .catch((err) => {
           console.error(err);
@@ -288,29 +280,31 @@
         });
     }
 
-    function saveServoSetting() {
-      api({
-        action: 'simpanServo',
-        servoHome: document.getElementById('servoHome').value,
-        servoFeed: document.getElementById('servoFeed').value,
-        feedDelay: document.getElementById('feedDelay').value
-      })
-        .then((res) => {
-          if (!res.success) throw new Error(res.message || 'Gagal menyimpan servo');
-          alert('Setting servo berhasil disimpan.');
-          loadState();
-        })
-        .catch((err) => alert(err.message));
-    }
+    let lastScheduleData = {};
 
     function saveSchedule() {
-      api({
-        action: 'simpanJadwal',
+      const newData = {
         lampuOnTime: document.getElementById('lampuOnTime').value,
         lampuOffTime: document.getElementById('lampuOffTime').value,
         feedTime1: document.getElementById('feedTime1').value,
         feedTime2: document.getElementById('feedTime2').value,
         scheduleEnabled: document.getElementById('scheduleSwitch').checked ? 'ON' : 'OFF'
+      };
+
+      if (
+        newData.lampuOnTime === lastScheduleData.lampuOnTime &&
+        newData.lampuOffTime === lastScheduleData.lampuOffTime &&
+        newData.feedTime1 === lastScheduleData.feedTime1 &&
+        newData.feedTime2 === lastScheduleData.feedTime2 &&
+        newData.scheduleEnabled === lastScheduleData.scheduleEnabled
+      ) {
+        alert('Tidak ada perubahan jadwal.');
+        return;
+      }
+
+      api({
+        action: 'simpanJadwal',
+        ...newData
       })
         .then((res) => {
           if (!res.success) throw new Error(res.message || 'Gagal menyimpan jadwal');
@@ -349,7 +343,7 @@
     }
 
     let idleTimer;
-    const timeoutMs = 5 * 60 * 1000;
+    const timeoutMs = 10 * 60 * 1000;
     function resetIdleTimer() {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
@@ -364,7 +358,7 @@
 
     window.addEventListener('load', () => {
       loadState();
-      pollTimer = setInterval(loadState, 5000);
+      pollTimer = setInterval(loadState, 10000);
       resetIdleTimer();
     });
   </script>
