@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Aquarium</title>
+  <link rel="icon" href="assets/img/icon.png" type="image/png">
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="header">
+    <div class="title-wrapper">
+      <span id="statusCircle" class="status-circle loading"></span>
+      <h1>Smart Aquarium</h1>
+    </div>
+    <div id="statusText" class="status-text">Loading...</div>
+  </div>
+
+  <div class="container">
+    <div id="kameraTab" class="tab-section">
+      <div class="camera-card">
+        <h3 style="margin-bottom: 16px; color:#444;">Live Monitoring</h3>
+        <div class="fake-camera-screen">
+          <div class="overlay">
+            <i class="fas fa-video fa-2x"></i>
+            <h4>Coming Soon</h4>
+          </div>
+        </div>
+        <p style="color:#666; margin-top: 18px;">
+          Fitur Live Monitoring belum aktif. Kontrol ini sengaja tetap ditampilkan, tetapi belum dipakai.
+        </p>
+      </div>
+    </div>
+
+    <div id="dashboardTab" class="tab-section active">
+      <div class="status-grid">
+        <div class="status-card temperature">
+          <div class="status-icon"><i class="fas fa-thermometer-half"></i></div>
+          <div class="status-value" id="suhuDisplay">--</div>
+          <div class="status-label">Suhu Air</div>
+        </div>
+        <div class="status-card food">
+          <div class="status-icon"><i class="fas fa-bowl-food"></i></div>
+          <div class="status-value" id="pakanDisplay">--</div>
+          <div class="status-label">Sisa Pakan</div>
+        </div>
+      </div>
+
+      <div class="feed-section">
+        <button class="feed-btn" onclick="feedFish()">
+          <i class="fas fa-utensils"></i> Beri Makan
+        </button>
+      </div>
+
+      <div class="temperature-control">
+        <div class="suhu-display-above">Suhu Maks: <span id="setSuhuDisplay">--</span>°C</div>
+        <div class="slider-container">
+          <input type="range" min="20" max="40" value="31" class="temp-slider" id="tempSlider" disabled>
+          <button class="set-btn" disabled title="Belum dipakai di kode ESP32 saat ini">SET</button>
+        </div>
+        <div id="tempPreview" class="temp-preview" style="display: none;">
+          Kontrol suhu/kipas belum dipakai di kode ESP32 saat ini: <span id="tempValue">--</span>°C
+        </div>
+      </div>
+
+      <div class="controls-section">
+        <h3 class="controls-title">Kontrol Perangkat</h3>
+        <div class="switch-grid">
+          <div class="switch-item">
+            <span class="switch-label">Saklar 1 - Lampu</span>
+            <label class="switch">
+              <input type="checkbox" id="lampuSwitch" onchange="toggleDevice('lampu', this)">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="switch-item inactive">
+            <span class="switch-label">Saklar 2 - Kipas Belum Aktif</span>
+            <label class="switch">
+              <input type="checkbox" id="kipasSwitch" disabled>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="switch-item inactive">
+            <span class="switch-label">Saklar 3 - Belum Aktif</span>
+            <label class="switch">
+              <input type="checkbox" id="saklar3Switch" disabled>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="switch-item inactive">
+            <span class="switch-label">Saklar 4 - Belum Aktif</span>
+            <label class="switch">
+              <input type="checkbox" id="saklar4Switch" disabled>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-section">
+        <h3 class="controls-title">Setting Servo Pakan</h3>
+        <div class="slider-container">
+          <input type="number" min="0" max="180" id="servoHome" placeholder="Servo awal">
+          <input type="number" min="0" max="180" id="servoFeed" placeholder="Servo buka">
+          <input type="number" min="200" max="10000" id="feedDelay" placeholder="Delay ms">
+          <button class="set-btn" onclick="saveServoSetting()">SIMPAN</button>
+        </div>
+      </div>
+
+      <div class="controls-section">
+        <h3 class="controls-title">Jadwal Otomatis</h3>
+        <div class="slider-container">
+          <input type="time" id="lampuOnTime" title="Lampu ON">
+          <input type="time" id="lampuOffTime" title="Lampu OFF">
+          <input type="time" id="feedTime1" title="Pakan 1">
+          <input type="time" id="feedTime2" title="Pakan 2">
+        </div>
+        <div class="switch-item" style="margin: 15px auto; max-width: 260px;">
+          <span class="switch-label">Aktifkan Jadwal</span>
+          <label class="switch">
+            <input type="checkbox" id="scheduleSwitch">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <button class="set-btn" onclick="saveSchedule()">SIMPAN JADWAL</button>
+      </div>
+    </div>
+
+    <div id="akunTab" class="tab-section">
+      <div class="akun-card">
+        <h3>Informasi Akun</h3>
+        <div class="akun-info-table">
+          <div class="info-row">
+            <i class="fas fa-user info-icon"></i>
+            <div class="info-value" id="userEmail">-</div>
+          </div>
+          <div class="info-row">
+            <i class="fas fa-database info-icon"></i>
+            <div class="info-value" id="userDB">Google Spreadsheet via Apps Script</div>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="#" class="nav-item" onclick="switchTab('kameraTab', this)">
+      <i class="fas fa-video"></i>
+      <span>Live Monitoring</span>
+    </a>
+    <a href="#" class="nav-item active" onclick="switchTab('dashboardTab', this)">
+      <i class="fas fa-tachometer-alt"></i>
+      <span>Dashboard</span>
+    </a>
+    <a href="#" class="nav-item" onclick="switchTab('akunTab', this)">
+      <i class="fas fa-user"></i>
+      <span>Akun</span>
+    </a>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('aquarium_token');
+    const nama = localStorage.getItem('aquarium_nama') || 'User';
+    const GAS_URL = localStorage.getItem('aquarium_gas_url') || 'https://script.google.com/macros/s/AKfycbwlcDdi9ayD8F97ppy0NkfB7ME57Il917TlCCIJXTuuLuMHYiKYf501a_QeiRin1Z6nvg/exec';
+    let perangkatOnline = false;
+    let pollTimer = null;
+
+    if (!token) {
+      alert('Silakan login terlebih dahulu!');
+      window.location.href = 'index.html';
+    }
+
+    document.getElementById('userEmail').innerText = nama;
+
+    function api(params) {
+      params.token = token;
+      const url = GAS_URL + '?' + new URLSearchParams(params).toString();
+      return fetch(url).then(res => res.json());
+    }
+
+    function setStatus(online, lastSeen) {
+      perangkatOnline = online;
+      const circle = document.getElementById('statusCircle');
+      const statusText = document.getElementById('statusText');
+
+      if (online) {
+        circle.className = 'status-circle online';
+        statusText.innerText = 'Online';
+      } else {
+        circle.className = 'status-circle offline';
+        statusText.innerText = 'Offline - Terakhir Aktif: ' + (lastSeen || '--');
+      }
+
+      updateKontrolDisplay();
+    }
+
+    function loadState() {
+      api({ action: 'getState' })
+        .then((res) => {
+          if (!res.success) throw new Error(res.message || 'Gagal membaca data');
+
+          setStatus(!!res.deviceOnline, res.deviceLastSeen);
+
+          document.getElementById('suhuDisplay').innerText = res.suhu ? res.suhu + '°C' : 'N/A';
+          document.getElementById('pakanDisplay').innerText = res.pakan ? res.pakan + '%' : 'N/A';
+          document.getElementById('setSuhuDisplay').innerText = res.setSuhu || '--';
+          document.getElementById('tempSlider').value = res.setSuhu || 31;
+          document.getElementById('tempValue').innerText = res.setSuhu || '--';
+
+          document.getElementById('lampuSwitch').checked = res.lampu === 'ON';
+          document.getElementById('kipasSwitch').checked = res.kipas === 'ON';
+
+          document.getElementById('servoHome').value = res.servoHome || 0;
+          document.getElementById('servoFeed').value = res.servoFeed || 90;
+          document.getElementById('feedDelay').value = res.feedDelay || 1500;
+
+          document.getElementById('lampuOnTime').value = res.lampuOnTime || '07:00';
+          document.getElementById('lampuOffTime').value = res.lampuOffTime || '21:00';
+          document.getElementById('feedTime1').value = res.feedTime1 || '08:00';
+          document.getElementById('feedTime2').value = res.feedTime2 || '17:00';
+          document.getElementById('scheduleSwitch').checked = res.scheduleEnabled === 'ON';
+        })
+        .catch((err) => {
+          console.error(err);
+          if ((err.message || '').includes('Sesi')) {
+            alert('Sesi habis. Silakan login ulang.');
+            localStorage.clear();
+            window.location.href = 'index.html';
+          } else {
+            setStatus(false, '--');
+          }
+        });
+    }
+
+    function updateKontrolDisplay() {
+      document.getElementById('lampuSwitch').disabled = !perangkatOnline;
+      document.querySelector('.feed-btn').disabled = !perangkatOnline;
+    }
+
+    function toggleDevice(device, element) {
+      if (!perangkatOnline) return;
+      if (device !== 'lampu') return;
+
+      element.disabled = true;
+      api({ action: 'setLampu', status: element.checked ? 'ON' : 'OFF' })
+        .then((res) => {
+          if (!res.success) throw new Error(res.message || 'Gagal mengubah lampu');
+          loadState();
+        })
+        .catch((err) => {
+          alert(err.message);
+          element.checked = !element.checked;
+        })
+        .finally(() => {
+          element.disabled = !perangkatOnline;
+        });
+    }
+
+    function feedFish() {
+      if (!perangkatOnline) return;
+
+      const btn = document.querySelector('.feed-btn');
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memberi Makan...';
+      btn.classList.add('feeding');
+      btn.disabled = true;
+
+      api({ action: 'beriPakan' })
+        .then((res) => {
+          if (!res.success) throw new Error(res.message || 'Gagal memberi pakan');
+          btn.innerHTML = '<i class="fas fa-check"></i> Perintah Dikirim!';
+          setTimeout(loadState, 1200);
+        })
+        .catch((err) => {
+          alert(err.message);
+          btn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Gagal!';
+        })
+        .finally(() => {
+          setTimeout(() => {
+            btn.classList.remove('feeding');
+            btn.innerHTML = '<i class="fas fa-utensils"></i> Beri Makan';
+            btn.disabled = !perangkatOnline;
+          }, 1800);
+        });
+    }
+
+    function saveServoSetting() {
+      api({
+        action: 'simpanServo',
+        servoHome: document.getElementById('servoHome').value,
+        servoFeed: document.getElementById('servoFeed').value,
+        feedDelay: document.getElementById('feedDelay').value
+      })
+        .then((res) => {
+          if (!res.success) throw new Error(res.message || 'Gagal menyimpan servo');
+          alert('Setting servo berhasil disimpan.');
+          loadState();
+        })
+        .catch((err) => alert(err.message));
+    }
+
+    function saveSchedule() {
+      api({
+        action: 'simpanJadwal',
+        lampuOnTime: document.getElementById('lampuOnTime').value,
+        lampuOffTime: document.getElementById('lampuOffTime').value,
+        feedTime1: document.getElementById('feedTime1').value,
+        feedTime2: document.getElementById('feedTime2').value,
+        scheduleEnabled: document.getElementById('scheduleSwitch').checked ? 'ON' : 'OFF'
+      })
+        .then((res) => {
+          if (!res.success) throw new Error(res.message || 'Gagal menyimpan jadwal');
+          alert('Jadwal berhasil disimpan.');
+          loadState();
+        })
+        .catch((err) => alert(err.message));
+    }
+
+    document.getElementById('tempSlider').addEventListener('input', function () {
+      const preview = document.getElementById('tempPreview');
+      const val = this.value;
+      document.getElementById('tempValue').innerText = val;
+      preview.style.display = 'block';
+      clearTimeout(window.tempPreviewTimer);
+      window.tempPreviewTimer = setTimeout(() => {
+        preview.style.display = 'none';
+      }, 2000);
+    });
+
+    function logout() {
+      if (confirm('Apakah Anda yakin ingin keluar?')) {
+        api({ action: 'logout' }).finally(() => {
+          localStorage.removeItem('aquarium_token');
+          localStorage.removeItem('aquarium_nama');
+          window.location.href = 'index.html';
+        });
+      }
+    }
+
+    function switchTab(tabId, element) {
+      document.querySelectorAll('.tab-section').forEach(tab => tab.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelectorAll('.bottom-nav .nav-item').forEach(nav => nav.classList.remove('active'));
+      element.classList.add('active');
+    }
+
+    let idleTimer;
+    const timeoutMs = 5 * 60 * 1000;
+    function resetIdleTimer() {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        alert('Anda telah logout karena tidak ada aktivitas.');
+        localStorage.removeItem('aquarium_token');
+        window.location.href = 'index.html';
+      }, timeoutMs);
+    }
+    ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
+      document.addEventListener(evt, resetIdleTimer, false);
+    });
+
+    window.addEventListener('load', () => {
+      loadState();
+      pollTimer = setInterval(loadState, 5000);
+      resetIdleTimer();
+    });
+  </script>
+</body>
+</html>

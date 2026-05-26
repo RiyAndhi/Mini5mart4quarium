@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Aquarium - Login</title>
+  <link rel="icon" href="assets/img/icon.png" type="image/png">
+  <link rel="stylesheet" href="assets/css/style-login.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2196f3" />
+</head>
+<body>
+  <div id="splashScreen">
+    <div class="spinner"></div>
+  </div>
+
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="logo">
+        <img src="assets/img/icon.png" alt="Logo Smart Aquarium">
+      </div>
+      <h1>Smart Aquarium</h1>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="nama">Nama</label>
+          <input type="text" id="nama" name="nama" placeholder="Contoh: Riyan" required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-icon">
+            <input type="password" id="password" name="password" required>
+            <i class="fas fa-eye password-toggle" onclick="togglePassword()"></i>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login"><i class="fas fa-plug"></i> Connect</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-content">
+      <i class="fas fa-spinner fa-spin fa-2x"></i>
+      <p>Memuat dashboard...</p>
+    </div>
+  </div>
+
+  <script>
+    // GANTI URL INI dengan URL deployment Web App Google Apps Script kamu.
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwlcDdi9ayD8F97ppy0NkfB7ME57Il917TlCCIJXTuuLuMHYiKYf501a_QeiRin1Z6nvg/exec";
+
+    function api(params) {
+      const url = GAS_URL + "?" + new URLSearchParams(params).toString();
+      return fetch(url).then(res => res.json());
+    }
+
+    function togglePassword() {
+      const passwordInput = document.getElementById('password');
+      const toggleIcon = document.querySelector('.password-toggle');
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        toggleIcon.classList.replace('fa-eye-slash', 'fa-eye');
+      }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const nama = document.getElementById('nama').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.querySelector('.btn-login');
+      const loading = document.getElementById('loadingScreen');
+
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
+      btn.disabled = true;
+      loading.style.display = 'flex';
+
+      api({ action: 'login', nama, password })
+        .then((res) => {
+          if (!res.success) throw new Error(res.message || 'Login gagal');
+
+          localStorage.setItem('aquarium_token', res.token);
+          localStorage.setItem('aquarium_nama', res.nama || nama);
+          localStorage.setItem('aquarium_gas_url', GAS_URL);
+          window.location.href = 'dashboard.html';
+        })
+        .catch((error) => {
+          alert('Login gagal: ' + error.message);
+          btn.innerHTML = '<i class="fas fa-plug"></i> Connect';
+          btn.disabled = false;
+          loading.style.display = 'none';
+        });
+    });
+
+    window.addEventListener('load', function () {
+      const token = localStorage.getItem('aquarium_token');
+      if (token) {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      setTimeout(() => {
+        const splash = document.getElementById('splashScreen');
+        splash.style.opacity = 0;
+        splash.style.transition = 'opacity 0.4s ease';
+        setTimeout(() => splash.style.display = 'none', 400);
+      }, 700);
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('Service Worker registered:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
