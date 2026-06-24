@@ -29,7 +29,7 @@
           </div>
         </div>
         <p style="color:#666; margin-top: 18px;">
-          Fitur Live Monitoring belum aktif. Kontrol ini sengaja tetap ditampilkan, tetapi belum dipakai.
+          Fitur Live Monitoring belum aktif.
         </p>
       </div>
     </div>
@@ -101,20 +101,44 @@
 
       <div class="controls-section">
         <h3 class="controls-title">Jadwal Otomatis</h3>
-        <div class="slider-container">
-          <input type="time" id="lampuOnTime" title="Lampu ON">
-          <input type="time" id="lampuOffTime" title="Lampu OFF">
-          <input type="time" id="feedTime1" title="Pakan 1">
-          <input type="time" id="feedTime2" title="Pakan 2">
+        
+        <div class="schedule-grid">
+          <div class="schedule-section">
+            <h4>Jadwal Lampu</h4>
+
+            <div class="switch-item">
+              <span class="switch-label">Aktifkan Jadwal Lampu</span>
+              <label class="switch">
+                <input type="checkbox" id="lampuScheduleSwitch">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div id="lampuScheduleList" class="schedule-list"></div>
+
+            <button type="button" class="set-btn" onclick="addLampuSchedule()">
+              + Tambah Jadwal Lampu
+            </button>
+          </div>
+          <!-- Jadwal Pakan -->
+          <div class="schedule-section">
+            <h4>Jadwal Pakan</h4>
+
+            <div class="switch-item">
+              <span class="switch-label">Aktifkan Jadwal Pakan</span>
+              <label class="switch">
+                <input type="checkbox" id="pakanScheduleSwitch">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div id="pakanScheduleList" class="schedule-list"></div>
+
+            <button type="button" class="set-btn" onclick="addPakanSchedule()">
+              + Tambah Jadwal Pakan
+            </button>
+          </div>
         </div>
-        <div class="switch-item" style="margin: 15px auto; max-width: 260px;">
-          <span class="switch-label">Aktifkan Jadwal</span>
-          <label class="switch">
-            <input type="checkbox" id="scheduleSwitch" onchange="saveSchedule()">
-            <span class="slider"></span>
-          </label>
-        </div>
-        <button class="set-btn" onclick="saveSchedule()">SIMPAN JADWAL</button>
       </div>
     </div>
 
@@ -124,7 +148,7 @@
         <div class="akun-info-table">
           <div class="info-row">
             <i class="fas fa-user info-icon"></i>
-            <div class="info-value" id="userEmail">-</div>
+            <div class="info-value" id="userNama">-</div>
           </div>
           <div class="info-row">
             <i class="fas fa-database info-icon"></i>
@@ -139,15 +163,18 @@
   </div>
 
   <div class="bottom-nav">
-    <a href="#" class="nav-item" onclick="switchTab('kameraTab', this)">
+    <a href="#" class="nav-item"
+    onclick="event.preventDefault();switchTab('kameraTab', this)">
       <i class="fas fa-video"></i>
       <span>Live Monitoring</span>
     </a>
-    <a href="#" class="nav-item active" onclick="switchTab('dashboardTab', this)">
+    <a href="#" class="nav-item active"
+    onclick="event.preventDefault();switchTab('dashboardTab', this)">
       <i class="fas fa-tachometer-alt"></i>
       <span>Dashboard</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchTab('akunTab', this)">
+    <a href="#" class="nav-item"
+    onclick="event.preventDefault();switchTab('akunTab', this)">  
       <i class="fas fa-user"></i>
       <span>Akun</span>
     </a>
@@ -165,12 +192,18 @@
       window.location.href = 'index.html';
     }
 
-    document.getElementById('userEmail').innerText = nama;
+    document.getElementById('userNama').innerText = nama;
 
     function api(params) {
       params.token = token;
       const url = GAS_URL + '?' + new URLSearchParams(params).toString();
-      return fetch(url).then(res => res.json());
+      return fetch(url)
+      .then(res => {
+        if (!res.ok)
+          throw new Error('Koneksi gagal');
+
+        return res.json();
+      });
     }
 
     function setStatus(online, lastSeen) {
@@ -190,43 +223,110 @@
     }
 
     function loadState() {
+
+      if (loadingState) return;
+      loadingState = true;
+
       api({ action: 'getState' })
         .then((res) => {
-          if (!res.success) throw new Error(res.message || 'Gagal membaca data');
+
+          if (!res.success)
+            throw new Error(res.message || 'Gagal membaca data');
 
           setStatus(!!res.deviceOnline, res.deviceLastSeen);
 
-          document.getElementById('suhuDisplay').innerText = res.suhu ? res.suhu + '°C' : 'N/A';
-          document.getElementById('pakanDisplay').innerText = res.pakan ? res.pakan + '%' : 'N/A';
-          document.getElementById('setSuhuDisplay').innerText = res.setSuhu || '--';
-          document.getElementById('tempSlider').value = res.setSuhu || 31;
-          document.getElementById('tempValue').innerText = res.setSuhu || '--';
+          document.getElementById('suhuDisplay').innerText =
+            res.suhu !== undefined ? res.suhu + '°C' : 'N/A';
 
-          document.getElementById('lampuSwitch').checked = res.lampu === 'ON';
+          document.getElementById('pakanDisplay').innerText =
+            res.pakan !== undefined ? res.pakan + '%' : 'N/A';
 
-          document.getElementById('lampuOnTime').value = res.lampuOnTime || '07:00';
-          document.getElementById('lampuOffTime').value = res.lampuOffTime || '21:00';
-          document.getElementById('feedTime1').value = res.feedTime1 || '08:00';
-          document.getElementById('feedTime2').value = res.feedTime2 || '17:00';
-          document.getElementById('scheduleSwitch').checked = res.scheduleEnabled === 'ON';
-          lastScheduleData = {
-            lampuOnTime: res.lampuOnTime || '07:00',
-            lampuOffTime: res.lampuOffTime || '21:00',
-            feedTime1: res.feedTime1 || '08:00',
-            feedTime2: res.feedTime2 || '17:00',
-            scheduleEnabled: res.scheduleEnabled || 'OFF'
-          };
+          document.getElementById('setSuhuDisplay').innerText =
+            res.setSuhu ?? '--';
+
+          document.getElementById('tempSlider').value =
+            res.setSuhu ?? 31;
+
+          document.getElementById('tempValue').innerText =
+            res.setSuhu ?? '--';
+
+          if (!lampuBusy) {
+            document.getElementById('lampuSwitch').checked =
+              res.lampu === 'ON';
+          }
+
+          if (
+              !lampuScheduleSaving &&
+              !pakanScheduleSaving &&
+              !lampuDirty &&
+              !pakanDirty &&
+              !editingSchedule
+          ) {
+
+            try {
+              lampuSchedules = res.lampuSchedules
+                ? (typeof res.lampuSchedules === 'string'
+                    ? JSON.parse(res.lampuSchedules)
+                    : res.lampuSchedules)
+                : [];
+
+              pakanSchedules = res.pakanSchedules
+                ? (typeof res.pakanSchedules === 'string'
+                    ? JSON.parse(res.pakanSchedules)
+                    : res.pakanSchedules)
+                : [];
+
+              renderLampuSchedules();
+              renderPakanSchedules();
+
+            } catch {
+              lampuSchedules = [];
+              pakanSchedules = [];
+            }
+
+          }
+
+          if (
+              !lampuScheduleSaving &&
+              !pakanScheduleSaving &&
+              !lampuDirty &&
+              !pakanDirty &&
+              !editingSchedule
+          ) {
+
+            document.getElementById('lampuScheduleSwitch').checked =
+              res.lampuScheduleEnabled === "ON";
+
+            document.getElementById('pakanScheduleSwitch').checked =
+              res.pakanScheduleEnabled === "ON";
+
+          }
+
+          firstLoad = false;
+
         })
+
         .catch((err) => {
+
           console.error(err);
+
           if ((err.message || '').includes('Sesi')) {
+
             alert('Sesi habis. Silakan login ulang.');
             localStorage.clear();
             window.location.href = 'index.html';
+
           } else {
-            setStatus(false, '--');
+              setStatus(false, '--');
+              console.log('Koneksi ke server gagal');
           }
+
+        })
+
+        .finally(() => {
+            loadingState = false;
         });
+
     }
 
     function updateKontrolDisplay() {
@@ -235,26 +335,35 @@
     }
 
     function toggleDevice(device, element) {
+
       if (!perangkatOnline) return;
       if (device !== 'lampu') return;
+      if (lampuBusy) return;
+
+      lampuBusy = true;
 
       element.disabled = true;
       api({ action: 'setLampu', status: element.checked ? 'ON' : 'OFF' })
         .then((res) => {
-          if (!res.success) throw new Error(res.message || 'Gagal mengubah lampu');
-          loadState();
+          if (!res.success)
+            throw new Error(res.message || 'Gagal mengubah lampu');
+
+          setTimeout(loadState, 1500);
         })
         .catch((err) => {
-          alert(err.message);
+          alert(err.message || 'Gagal mengubah lampu');
           element.checked = !element.checked;
         })
         .finally(() => {
           element.disabled = !perangkatOnline;
+          lampuBusy = false;
         });
     }
 
     function feedFish() {
-      if (!perangkatOnline) return;
+      if (!perangkatOnline || feedingNow) return;
+
+      feedingNow = true;
 
       const btn = document.querySelector('.feed-btn');
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memberi Makan...';
@@ -268,7 +377,7 @@
           setTimeout(loadState, 1200);
         })
         .catch((err) => {
-          alert(err.message);
+          alert(err.message || 'Gagal memberi pakan');
           btn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Gagal!';
         })
         .finally(() => {
@@ -276,42 +385,269 @@
             btn.classList.remove('feeding');
             btn.innerHTML = '<i class="fas fa-utensils"></i> Beri Makan';
             btn.disabled = !perangkatOnline;
+            feedingNow = false;
           }, 1800);
         });
     }
 
-    let lastScheduleData = {};
+    let lampuSchedules = [];
+    let pakanSchedules = [];
+    let firstLoad = true;
+    let feedingNow = false;
+    let loadingState = false;
+    let lampuBusy = false;
+    let editingSchedule = false;
+    let lampuSaveTimer;
+    let pakanSaveTimer;
 
-    function saveSchedule() {
-      const newData = {
-        lampuOnTime: document.getElementById('lampuOnTime').value,
-        lampuOffTime: document.getElementById('lampuOffTime').value,
-        feedTime1: document.getElementById('feedTime1').value,
-        feedTime2: document.getElementById('feedTime2').value,
-        scheduleEnabled: document.getElementById('scheduleSwitch').checked ? 'ON' : 'OFF'
-      };
+    let lampuScheduleSaving = false;
+    let pakanScheduleSaving = false;
 
-      if (
-        newData.lampuOnTime === lastScheduleData.lampuOnTime &&
-        newData.lampuOffTime === lastScheduleData.lampuOffTime &&
-        newData.feedTime1 === lastScheduleData.feedTime1 &&
-        newData.feedTime2 === lastScheduleData.feedTime2 &&
-        newData.scheduleEnabled === lastScheduleData.scheduleEnabled
-      ) {
-        alert('Tidak ada perubahan jadwal.');
+    let lampuDirty = false;
+    let pakanDirty = false;
+
+    let lampuNeedSave = false;
+    let pakanNeedSave = false;
+
+    document.getElementById('lampuScheduleSwitch')
+    .addEventListener('change', saveLampuSchedule);
+
+    document.getElementById('pakanScheduleSwitch')
+    .addEventListener('change', savePakanSchedule);
+
+    function saveLampuSchedule() {
+
+      lampuDirty = true;
+
+      if (lampuScheduleSaving) {
+        lampuNeedSave = true;
+        return;
+    }
+
+    lampuScheduleSaving = true;
+
+      api({
+        action: 'simpanJadwalLampu',
+        lampuSchedules: JSON.stringify(lampuSchedules),
+        enabled: document.getElementById('lampuScheduleSwitch').checked ? 'ON' : 'OFF'
+      })
+
+      .finally(() => {
+
+          lampuScheduleSaving = false;
+
+          if (lampuNeedSave) {
+              lampuNeedSave = false;
+              saveLampuSchedule();
+          } else {
+              lampuDirty = false;
+          }
+
+      });
+
+    }
+
+    function savePakanSchedule() {
+
+      pakanDirty = true;
+
+      if (pakanScheduleSaving) {
+          pakanNeedSave = true;
+          return;
+      }
+
+      pakanScheduleSaving = true;
+
+      api({
+        action: 'simpanJadwalPakan',
+        pakanSchedules: JSON.stringify(pakanSchedules),
+        enabled: document.getElementById('pakanScheduleSwitch').checked ? 'ON' : 'OFF'
+      })
+
+      .finally(() => {
+
+          pakanScheduleSaving = false;
+
+          if (pakanNeedSave) {
+              pakanNeedSave = false;
+              savePakanSchedule();
+          } else {
+              pakanDirty = false;
+          }
+
+      });
+
+    }
+
+    function addLampuSchedule() {
+
+      if (lampuSchedules.length >= 8) {
+        alert("Maksimal 8 jadwal");
         return;
       }
 
-      api({
-        action: 'simpanJadwal',
-        ...newData
-      })
-        .then((res) => {
-          if (!res.success) throw new Error(res.message || 'Gagal menyimpan jadwal');
-          alert('Jadwal berhasil disimpan.');
-          loadState();
-        })
-        .catch((err) => alert(err.message));
+      lampuSchedules.push({
+        time: "07:00",
+        action: "ON"
+      });
+
+      renderLampuSchedules();
+      saveLampuSchedule();
+    }
+
+    function addPakanSchedule() {
+
+        if (pakanSchedules.length >= 8) {
+          alert("Maksimal 8 jadwal");
+          return;
+        }
+
+        pakanSchedules.push({
+          time: "08:00"
+        });
+
+        renderPakanSchedules();
+        savePakanSchedule();
+      }
+
+      function renderLampuSchedules() {
+
+      let html = "";
+
+      lampuSchedules.forEach((item,index)=>{
+
+        html += `
+          <div class="schedule-row">
+            <input type="time"
+            value="${item.time}"
+            onfocus="editingSchedule=true"
+            onchange="
+            lampuSchedules[${index}].time=this.value;
+
+            clearTimeout(lampuSaveTimer);
+
+            lampuSaveTimer = setTimeout(() => {
+                saveLampuSchedule();
+            }, 500);
+            "
+            onblur="
+              editingSchedule=false;
+              saveLampuSchedule();
+              ">
+
+            <div class="custom-select">
+
+              <div class="select-btn">
+                <span>${item.action}</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+
+              <ul class="select-menu">
+
+                <li onclick="
+                lampuSchedules[${index}].action='ON';
+                renderLampuSchedules();
+                saveLampuSchedule();
+                document.querySelectorAll('.custom-select')
+                .forEach(x=>x.classList.remove('active'));
+                ">
+                ON
+                </li>
+
+                <li onclick="
+                lampuSchedules[${index}].action='OFF';
+                renderLampuSchedules();
+                saveLampuSchedule();
+                document.querySelectorAll('.custom-select')
+                .forEach(x=>x.classList.remove('active'));
+                ">
+                OFF
+                </li>
+
+              </ul>
+
+            </div>
+
+            <button type="button"
+            onclick="
+            lampuSchedules.splice(${index},1);
+            renderLampuSchedules();
+            saveLampuSchedule();
+            ">
+              Hapus
+            </button>
+
+          </div>
+        `;
+      });
+
+      document.getElementById("lampuScheduleList").innerHTML = html;
+      initCustomSelect();
+    }
+
+    function initCustomSelect(){
+
+      document.querySelectorAll(".select-btn").forEach(btn=>{
+
+        btn.onclick=function(){
+
+          const parent=this.parentElement;
+
+          document.querySelectorAll(".custom-select").forEach(s=>{
+
+            if(s!==parent)
+              s.classList.remove("active");
+
+          });
+
+          parent.classList.toggle("active");
+
+        }
+
+      });
+
+    }
+
+    function renderPakanSchedules() {
+
+      let html = "";
+
+      pakanSchedules.forEach((item,index)=>{
+
+        html += `
+          <div class="schedule-row">
+
+            <input type="time"
+            value="${item.time}"
+            onfocus="editingSchedule=true"
+            onchange="
+            pakanSchedules[${index}].time=this.value;
+
+            clearTimeout(pakanSaveTimer);
+
+            pakanSaveTimer = setTimeout(() => {
+                savePakanSchedule();
+            }, 500);
+            "
+            onblur="
+            editingSchedule=false;
+            savePakanSchedule();
+            ">
+
+            <button type="button"
+            onclick="
+            pakanSchedules.splice(${index},1);
+            renderPakanSchedules();
+            savePakanSchedule();
+            ">
+              Hapus
+            </button>
+
+          </div>
+        `;
+      });
+
+      document.getElementById("pakanScheduleList").innerHTML = html;
     }
 
     document.getElementById('tempSlider').addEventListener('input', function () {
@@ -349,6 +685,7 @@
       idleTimer = setTimeout(() => {
         alert('Anda telah logout karena tidak ada aktivitas.');
         localStorage.removeItem('aquarium_token');
+        localStorage.removeItem('aquarium_nama');
         window.location.href = 'index.html';
       }, timeoutMs);
     }
@@ -358,8 +695,40 @@
 
     window.addEventListener('load', () => {
       loadState();
-      pollTimer = setInterval(loadState, 10000);
+      pollTimer = setInterval(() => {
+
+          if (
+              !lampuScheduleSaving &&
+              !pakanScheduleSaving &&
+              !lampuDirty &&
+              !pakanDirty &&
+              !lampuNeedSave &&
+              !pakanNeedSave &&
+              !editingSchedule &&
+              !lampuBusy
+          )
+          {
+              loadState();
+          }
+
+      }, 10000);
       resetIdleTimer();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      clearInterval(pollTimer);
+    });
+
+    document.addEventListener("click", e => {
+
+      document.querySelectorAll(".custom-select").forEach(select => {
+
+        if (!select.contains(e.target)) {
+          select.classList.remove("active");
+        }
+
+      });
+
     });
   </script>
 </body>
